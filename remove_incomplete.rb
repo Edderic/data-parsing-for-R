@@ -15,25 +15,26 @@ class RemoveIncomplete
 	 
 		rows = file_to_parse.readlines
 
+		regexp = Regexp.new('^[0-9]+') # Helps us select the number at the start of line
 
-		# Where we store the group of
-		# consecutive rows that start with 0 and
-		# end with 32
+		# Arrays 
 
 		@header_tmp_arr = []
 		@rows_tmp_arr = []
 		@valid_rows_arr = [] 
-		regexp = Regexp.new('^[0-9]+')
-		@last_q_num = 0  # Should trigger 1st if-statement
-		@new_q_num = nil
+
+		# Question indices
+
+		@new_question_n = nil       	
+		@last_question_n = 0       
 
 		def self.debug(which_case, row)
 			puts "ROW\t" + row
 			puts "\t\tCASE #{which_case}"
+			puts "\t\tLAST_QUESTION_N:\t#{@last_question_n}"  
+			puts "\t\tNEW_QUESTION_N: \t#{@new_question_n}"
 			puts "\t\tHEADER_TMP"
 			@header_tmp_arr.each { |header| puts "\t\t\t" + header}
-			puts "\t\tLAST_Q_NUM\t#{@last_q_num}"  
-			puts "\t\tNEW_Q_NUM:\t#{@new_q_num}"
 			puts "\t\tROWS_TMP"
 			@rows_tmp_arr.each { |row| puts "\t\t\t" + row}
 			puts "\t\tVALID_ROWS"
@@ -45,46 +46,48 @@ class RemoveIncomplete
 			
 			# Find first word of each line
 			match = regexp.match(row)
-			@new_q_num = (match.nil? ? nil : match[0].to_i)
+			@new_question_n = (match.nil? ? nil : match[0].to_i)
 
 			# Line without a question number.	
 
-			if @new_q_num.nil?
+			if @new_question_n.nil?
 				@header_tmp_arr = []
 				@header_tmp_arr << row   
 				@rows_tmp_arr = []
-				@last_q_num = 0
+				@last_question_n = 0
 
 				self.debug("ONE", row) if @DEBUG
 
 			# Are the two indices in between 1-32 (exclusive)
 			# and are they increasing properly?
-			# Or are we're at the start of the loop or
-			# did last line not have any q_index?
+			# Or are we at the start of the loop or
+			# did last line not have any question index?
 
-			elsif @new_q_num > @last_q_num && 
-				 @last_q_num < 32 || @last_q_num == 0 
+			elsif @new_question_n > @last_question_n && 
+				 @last_question_n < 32 || @last_question_n == 0 
 
 				@rows_tmp_arr << row
-				@last_q_num = @new_q_num
 				
 				debug("TWO", row) if @DEBUG
 
-				if @last_q_num == 32
+				@last_question_n = @new_question_n
+
+				# Successful block of rows 1-32
+				# Did the new question number roll back to 1
+				# with the last question number reaching 32?
+
+				if @last_question_n == 32
 
 					@header_tmp_arr.each { |header| @valid_rows_arr << header }
 				 	@rows_tmp_arr.each { |valid_row| @valid_rows_arr << valid_row }
 
 				 	@header_tmp_arr = []
 					@rows_tmp_arr = []  
-					@last_q_num = @new_q_num
+					@last_question_n = @new_question_n
 
-			# Successful block of rows 1-32
-			# Did the new question number roll back to 1
-			# with the last question number reaching 32?
-					debug("THREE", row) if @DEBUG
+					debug("THREE: SUCCESS", row) if @DEBUG
 
-					@last_q_num = 0
+					@last_question_n = 0
 				end
 
 
@@ -92,17 +95,13 @@ class RemoveIncomplete
 			# without the last question number reaching
 			# 32?
 
-			elsif @new_q_num < @last_q_num && 
-				    @last_q_num < 32
-
-				# Don't add the q_num-th items
-				# to the valid array. Instead
-				# empty the rows_tmp_arr
+			elsif @new_question_n < @last_question_n && 
+				    @last_question_n < 32
 
 			 	@header_tmp_arr = []
 				@rows_tmp_arr = []
 				@rows_tmp_arr << row
-				@last_q_num = @new_q_num
+				@last_question_n = @new_question_n
 				
 				debug("FOUR", row) if @DEBUG
 			else
